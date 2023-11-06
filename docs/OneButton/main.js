@@ -96,13 +96,13 @@ let nextPowDist;
 let player;
 let animTicks;
 
-const floorIndexToY = (i) => 16 + i * 15;
+const floorIndexToY = 90;
 
 function update() {
   if (!ticks) {
-    floors = times(6, (i) => {
+    floors = times(1, (i) => {
       return {
-        y: floorIndexToY(i),
+        y: floorIndexToY,
         holeXs: i === 5 ? [] : [rnd(99, 180)],
         nextHoleDist: i === 5 ? 999999999 : rnd(99),
         bambooXs: [],
@@ -115,9 +115,9 @@ function update() {
     nextBambooFloorIndex = rndi(floors.length);
     nextSkullDist = rnd(49, 99);
     nextPowDist = 999;
-    const floorIndex = 5;
+    const floorIndex = 0;
     player = {
-      pos: vec(20, floorIndexToY(floorIndex)),
+      pos: vec(20, floorIndexToY),
       floorIndex,
       targetFi: undefined,
     };
@@ -125,7 +125,7 @@ function update() {
   }
   animTicks += difficulty;
   if (player.targetFi != null) {
-    const ty = floorIndexToY(player.targetFi);
+    const ty = floorIndexToY;
     const vy = ty > player.pos.y ? 1 : -1;
     player.pos.y += vy * difficulty * 3;
     if ((player.pos.y - ty) * vy > 0) {
