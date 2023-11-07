@@ -1,7 +1,8 @@
 title = "One Button";
 
 description = `
-[Tap] Go up
+[Tap]
+ Jump / Double jump / Descent
 `;
 
 characters = [
@@ -12,61 +13,44 @@ ll l l
 llllll
  l  l
  l  l
-    `,
+  `,
   `
 llllll
 ll l l
 ll l l
 llllll
 ll  ll
-    `,
-  `
-  yy
-  YY
- yyyy
- YYYY
-yyyyyy
-YYYYYY
-    `,
-  `
-  rr
-  rr
-  rr
-  rr
-  rr
-  rr
   `,
   `
-  rr
- rRRr
- r  r
- rRRr
- rRRr
-  rr
-  `,
+  lll
+ll l l
+ llll
+  ll
+ l  l
+ l  l
+`,
   `
-  rr
- rRRr
-r RR r
-rRRRRr
- rRRr
-  rr
-  `,
+  lll
+ll l l
+ llll
+ l  l
+ll  ll
+`,
   `
-  rr
- rRRr
- r  r
- rRRr
- rRRr
-  rr
-  `,
+ll
+ ll
+ ll l
+llllll
+
+
+`,
   `
-yyyy
-y  y
-yyyy
-y Y YY
-y Y YY
-y Y YY
+
+    l
+llllll
+ ll
+ ll
+ll
 `,
 ];
 
@@ -75,185 +59,91 @@ options = {
   isPlayingBgm: true,
   isReplayEnabled: true,
   isDrawingScoreFront: true,
-  seed: 12,
+  seed: 3,
 };
+
+const floorHeight = 90;
+const maxJumpCount = 2;
 
 /**
  * @type {{
- * y: number,
- * holeXs: number[], nextHoleDist: number,
- * bambooXs: number[],
- * skullXs: number[],
- * powXs: number[]
- * }[]}
+ * pos: Vector, vy: number, jumpCount: number, isOnFloor: boolean,
+ * multiplier: number, shots: Vector[], nextShotTicks: number
+ * }}
  */
-let floors;
-let nextBambooDist;
-let nextBambooFloorIndex;
-let nextSkullDist;
-let nextPowDist;
-/** @type {{pos: Vector, floorIndex: number, targetFi: number }} */
 let player;
+/** @type {{ pos: Vector, vx: number, isFlying: boolean }[]} */
+let enemies;
+let nextEnemyTicks;
+let nextWallTicks;
+let nextFlyingTicks;
+let floorX;
 let animTicks;
-
-const floorIndexToY = 90;
 
 function update() {
   if (!ticks) {
-    floors = times(1, (i) => {
-      return {
-        y: floorIndexToY,
-        holeXs: i === 5 ? [] : [rnd(99, 180)],
-        nextHoleDist: i === 5 ? 999999999 : rnd(99),
-        bambooXs: [],
-        nextBamBooDist: 0,
-        skullXs: [],
-        powXs: [],
-      };
-    });
-    nextBambooDist = 0;
-    nextBambooFloorIndex = rndi(floors.length);
-    nextSkullDist = rnd(49, 99);
-    nextPowDist = 999;
-    const floorIndex = 0;
     player = {
-      pos: vec(20, floorIndexToY),
-      floorIndex,
-      targetFi: undefined,
+      pos: vec(20, 50),
+      vy: 0,
+      jumpCount: 9,
+      isOnFloor: false,
+      multiplier: 1,
+      shots: [],
+      nextShotTicks: 0,
     };
+    nextWallTicks = rnd(300, 400);
+    nextFlyingTicks = rnd(200, 300);
+    floorX = 0;
     animTicks = 0;
   }
-  animTicks += difficulty;
-  if (player.targetFi != null) {
-    const ty = floorIndexToY;
-    const vy = ty > player.pos.y ? 1 : -1;
-    player.pos.y += vy * difficulty * 3;
-    if ((player.pos.y - ty) * vy > 0) {
-      player.pos.y = ty;
-      player.floorIndex = player.targetFi;
-      player.targetFi = undefined;
+  const df = sqrt(difficulty);
+  animTicks += df;
+  color("light_cyan");
+  rect(floorX, floorHeight, 210, 9);
+  rect(floorX + 230, floorHeight, 210, 9);
+  floorX -= df;
+  if (floorX < -209) {
+    floorX += 230;
+  }
+  if (!player.isOnFloor) {
+    player.vy += (input.isPressed ? 0.1 : 0.3) * df;
+    player.pos.y += player.vy;
+    if (player.pos.y > floorHeight) {
+      play("hit");
+      player.pos.y = floorHeight;
+      player.isOnFloor = true;
+      player.jumpCount = 0;
+      player.multiplier = 1;
     }
   }
-  if (player.targetFi == null) {
-    if (input.isJustPressed && player.floorIndex > 0) {
+  if (input.isJustPressed) {
+    if (player.jumpCount === maxJumpCount) {
+      play("laser");
+      player.vy += 9 * sqrt(df);
+    } else if (player.jumpCount < maxJumpCount) {
       play("jump");
-      player.targetFi = player.floorIndex - 1;
-    } else if (checkHole(player.floorIndex, player.pos.x)) {
-      play("click");
-      player.targetFi = player.floorIndex + 1;
+      player.vy = -3 * sqrt(df);
+      player.isOnFloor = false;
     }
+    player.jumpCount++;
   }
+  color("yellow");
   char(
-    addWithCharCode("a", floor(animTicks / 20) % 2),
-    player.pos.x,
-    player.pos.y - 5
+    addWithCharCode("a", floor(animTicks / 15) % 2),
+    player.pos.x + 3,
+    player.pos.y - 3
   );
-  const scr = difficulty;
-  nextBambooDist -= scr;
-  if (nextBambooDist < 0) {
-    if (floors[nextBambooFloorIndex].nextHoleDist < 9) {
-      nextBambooFloorIndex = rndi(floors.length);
-    } else {
-      floors[nextBambooFloorIndex].bambooXs.push(209);
-      if (rnd() < 0.3) {
-        nextBambooDist = 6;
-      } else {
-        nextBambooDist = rnd(200, 300);
-        nextBambooFloorIndex = rndi(floors.length);
-      }
-    }
+  nextWallTicks--;
+  nextFlyingTicks--;
+  if (nextWallTicks < 0) {
+    const vx = -rnd(1, 2) * df;
+    const c = rndi(3, 6);
+    nextWallTicks = rnd(100, 600) / difficulty;
   }
-  nextSkullDist -= scr;
-  if (nextSkullDist < 0) {
-    const fi = rndi(floors.length);
-    if (floors[fi].nextHoleDist > 9 && nextBambooDist > 9) {
-      floors[fi].skullXs.push(209);
-    }
-    nextSkullDist += rnd(30, 50);
+  if (nextFlyingTicks < 0) {
+    const vx = -rnd(1, 2) * df;
+    const c = rndi(1, 5);
+    const p = vec(206, rnd(50, 80));
+    nextFlyingTicks = rnd(100, 400) / difficulty;
   }
-  nextPowDist -= scr;
-  if (nextPowDist < 0) {
-    const fi = rndi(floors.length);
-    floors[fi].powXs.push(209);
-    nextPowDist = 999;
-  }
-  color("light_blue");
-  rect(0, 97, 200, 3);
-  floors.forEach((f) => {
-    f.nextHoleDist -= scr;
-    if (f.nextHoleDist < 0) {
-      f.holeXs.push(200);
-      f.nextHoleDist = rnd(32, 99);
-    }
-    let fx = 0;
-    f.holeXs.forEach((x, i) => {
-      if (x > fx) {
-        color("green");
-        rect(fx, f.y - 2, x - fx, 2);
-        color("light_black");
-        rect(fx, f.y, x - fx, 3);
-      }
-      fx = x + 9;
-      f.holeXs[i] -= scr;
-    });
-    if (fx < 200) {
-      color("green");
-      rect(fx, f.y - 2, 200 - fx, 2);
-      color("light_black");
-      rect(fx, f.y, 200 - fx, 3);
-    }
-    color("black");
-    remove(f.holeXs, (x) => x < -9);
-    f.bambooXs.forEach((x, i) => {
-      const c = char("c", x, f.y - 5).isColliding.char;
-      if (c.a || c.b) {
-        play("coin");
-        addScore(1, x, f.y - 5);
-        f.bambooXs[i] = -9;
-      }
-      f.bambooXs[i] -= scr;
-    });
-    remove(f.bambooXs, (x) => x < -3);
-    f.powXs.forEach((x, i) => {
-      const c = char("h", x, f.y - 5).isColliding.char;
-      if (c.a || c.b) {
-        play("powerUp");
-        floors.forEach((f) => {
-          f.skullXs.forEach((x) => {
-            f.bambooXs.push(x);
-          });
-          f.skullXs = [];
-        });
-        f.powXs[i] = -9;
-      }
-      f.powXs[i] -= scr;
-    });
-    remove(f.powXs, (x) => x < -3);
-    f.skullXs.forEach((x, i) => {
-      const c = char(
-        addWithCharCode("d", floor(animTicks / 15) % 4),
-        x,
-        f.y - 5
-      ).isColliding.char;
-      if (c.c || c.h) {
-        f.skullXs[i] = -9;
-      }
-      if (c.a || c.b) {
-        play("explosion");
-        end();
-      }
-      f.skullXs[i] -= scr;
-    });
-    remove(f.skullXs, (x) => x < -3);
-  });
-}
-
-function checkHole(fi, x) {
-  let hasHole = false;
-  floors[fi].holeXs.forEach((hx) => {
-    if (x > hx + 3 && x < hx + 6) {
-      hasHole = true;
-    }
-  });
-  return hasHole;
 }
