@@ -30,7 +30,7 @@ options = {
   theme: "pixel",
 };
 
-/** @type {{pos: Vector, vy: number, posHistory: Vector[], isJumping: boolean}} */
+/** @type {{pos: Vector, vy: number, posHistory: Vector[], isInFlight: boolean, jumpPressed: Boolean}} */
 let player;
 /** @type {{pos: Vector, width: number}[]} */
 let floors;
@@ -44,7 +44,7 @@ const maxGapWidth = 40;
 
 function update() {
   if (!ticks) {
-    player = { pos: vec(64, fixedFloorHeight - 5), vy: 0, posHistory: [], isJumping: false }; 
+    player = { pos: vec(64, fixedFloorHeight - 5), vy: 0, posHistory: [], isInFlight: false, jumpPressed: false }; 
     floors = [];
     nextFloorDist = 0;
     // Create an initial floor to start on
@@ -54,9 +54,13 @@ function update() {
     });
   }
 
-  const scr = sqrt(difficulty);
+  // Level Speed
+  const scr = sqrt(ticks/200) + 1;
 
-  if (player.isJumping) {
+  // Set The Score Tracker
+  score = ticks/5;
+
+  if (player.isInFlight) {
     const pp = vec(player.pos);
     player.vy += (input.isPressed ? 0.05 : 0.2) * difficulty;
     player.pos.y += player.vy;
@@ -70,7 +74,8 @@ function update() {
     if (input.isJustPressed) {
       play("jump");
       player.vy = -2 * sqrt(difficulty);
-      player.isJumping = true;
+      player.isInFlight = true;
+      player.jumpPressed = true;
     }
   }
 
@@ -81,7 +86,7 @@ function update() {
 
   if (nextFloorDist < 0) {
     const gapWidth = rnd(minGapWidth, maxGapWidth);
-    const floorWidth = rnd(40, 80);
+    const floorWidth = rnd(40, 200);
     floors.push({
       pos: vec(200 + gapWidth / 2 + floorWidth / 2, fixedFloorHeight),
       width: floorWidth,
@@ -89,13 +94,24 @@ function update() {
     nextFloorDist += gapWidth + floorWidth + rnd(10, 30);
   }
 
+  let death = false;
   remove(floors, (f) => {
     f.pos.x -= scr;
+
+    color("transparent");
+    // color("blue");
+    const jumpedGapCheck = box(f.pos.x - f.width/2-4, f.pos.y -4, 3, 3).isColliding.rect;
+    if (jumpedGapCheck.white && !player.jumpPressed){
+      death = true;
+    }
+
     color("light_yellow");
+
     const c = box(f.pos, f.width, 4).isColliding.rect;
     if (player.vy > 0 && c.white) {
       player.pos.y = f.pos.y - 5;
-      player.isJumping = false;
+      player.isInFlight = false;
+      player.jumpPressed = false;
       player.vy = 0;
     }
     return f.pos.x < -f.width / 2;
@@ -113,15 +129,16 @@ function update() {
 
   color("transparent");
 
-  if (!player.isJumping) {
+  if (!player.isInFlight) {
     if (!box(player.pos.x, player.pos.y + 4, 9, 2).isColliding.rect.light_yellow) {
-      player.isJumping = true;
+      player.isInFlight = true;
     }
   }
+
   color("black");
   char(player.vy < 0 ? "b" : "a", player.pos);
 
-  if (player.pos.y > 99) {
+  if (player.pos.y > 90 || death) {
     play("explosion");
     end();
   }
