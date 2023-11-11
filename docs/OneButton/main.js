@@ -20,6 +20,20 @@ ll l l
 llllll
 ll  ll
   `,
+`
+R
+R
+R
+R
+
+R
+`
+    ,
+   `
+   R
+  RRR
+ RRRRR
+   `
 ];
 
 options = {
@@ -41,8 +55,27 @@ const fixedFloorHeight = 70;
 const minGapWidth = 20; 
 // Set the maximum gap width between floors.
 const maxGapWidth = 40; 
+/* ----------------------------------------------------------------------------------- */
+
+// Warning Type
+let warningType = 2;
+// Warning Pos
+const warningPos = {x: 150, y: 40}
+// Warning Scale   (Does not work well with type 2 yet...)
+const warningScale = 12;
+
+// Warning Speed (Type 1)
+const warningSpeed = 2;
+
+// Used for flipping and un-flipping the sprite shown in a flashing warning
+let flash = false;
+
+/* ----------------------------------------------------------------------------------- */
+
 
 function update() {
+  
+
   if (!ticks) {
     player = { pos: vec(64, fixedFloorHeight - 5), vy: 0, posHistory: [], isInFlight: false, jumpPressed: false }; 
     floors = [];
@@ -123,12 +156,45 @@ function update() {
   remove(floors, (f) => {
     // Shift the floor's position to the left to simulate scrolling with the screen
     f.pos.x -= scr;
+
     color("transparent");
-    // Check if the player's character jumped and collided with a gap in the floor
+    // Check if the player's character crossed a gap without jumping
     // If the collision is detected and the jump button wasn't pressed, mark 'death' as true
     const jumpedGapCheck = box(f.pos.x - f.width/2-4, f.pos.y -4, 3, 3).isColliding.rect;
     if (jumpedGapCheck.white && !player.jumpPressed){
       death = true;
+    }
+
+    // If the right side of the floor is within this range, display a warning
+    if ( f.pos.x + f.width/2 > 60 && f.pos.x + f.width/2 < 110){
+      switch (warningType){
+        case 1:
+          // Basic Exclamation Point Warning
+          if (flash) {
+            char('c', warningPos.x, warningPos.y, {scale:{x:warningScale/3,y:warningScale/3}, color: "light_red"})
+          }
+          else {
+            char('c', warningPos.x, warningPos.y, {scale:{x:warningScale/3,y:warningScale/3}, color: "light_yellow"})
+          }
+          if (ticks/5 % warningSpeed == 1) flash = !flash;
+          break;
+        
+        case 2:
+          // Warning Sign 
+          char('d', warningPos.x - 3, warningPos.y - 8, {scale:{x:warningScale / 1.2,y:warningScale * 1}, color: "light_red"})
+          char('d', warningPos.x - 2, warningPos.y - 6, {scale:{x:warningScale / 1.2 -2,y:warningScale * 1 -2}, color: "light_yellow"})
+          char('c', warningPos.x, warningPos.y, {scale:{x:warningScale/3,y:warningScale/3}, color: "light_red"})
+          break;
+
+        case 3: 
+
+          /*    !!! INSERT YOUR WARNING CODE HERE :) !!!    */
+
+          break;
+        default:
+          // No Warning Chosen / Displayed
+          break;
+      }
     }
 
     color("light_yellow");
