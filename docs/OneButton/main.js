@@ -1,4 +1,4 @@
-title = "One Button";
+title = "Rev Up";
 
 description = `
 [Tap] Multiple jumps
